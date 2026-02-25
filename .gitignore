@@ -1,0 +1,25 @@
+# Virtual Environment
+venv/
+dasvenv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Excel temp files
+~$*.xlsx
+
+# OS files
+.DS_Store
+Thumbs.db
