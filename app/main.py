@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Depends
-from .services import process_excel_DailyBreakData, process_excel_LoginData
+from .services import process_excel_DailyBreakData, process_excel_LoginData, process_excel_TimeOnStatus
 from .dependencies import get_db
 import shutil
 import os
@@ -58,3 +58,22 @@ async def upload_excelDailyBreakData(
         "data": result
     }
 
+@app.post("/upload-excel-timeonstatus/", tags=["DAS Module"])
+async def upload_excelTimeOnStatus(
+    file: UploadFile = File(...),
+    conn = Depends(get_db)
+):
+
+    temp_path = f"temp_{file.filename}"
+
+    with open(temp_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    result = process_excel_TimeOnStatus(temp_path, conn)
+
+    os.remove(temp_path)
+
+    return {
+        "status": "Completed",
+        "data": result
+    }

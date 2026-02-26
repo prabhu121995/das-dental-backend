@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from pathlib import Path
 import json
-from .schemas import AgentSchema, BreakDataSchema
+from .schemas import AgentSchema, BreakDataSchema, TimeOnStatusSchema
 
 CHUNK_SIZE = 5000
 
@@ -164,6 +164,109 @@ def process_excel_DailyBreakData(file_path, conn):
             try:
                 cursor.executemany("""
                     EXEC sp_InsertAgentBreak_Data ?,?,?,?,?,?,?,?,?,?,?
+                """, validated_rows)
+
+                total_inserted += len(validated_rows)
+
+            except Exception as e:
+                # If DB fails, log all rows as DB error
+                for row_data in validated_rows:
+                    error_logs.append((
+                        None,
+                        "Database",
+                        str(e),
+                        json.dumps(row_data, default=str)
+                    ))
+
+                total_failed += len(validated_rows)
+
+        # Insert errors into error_logs table
+        if error_logs:
+            cursor.executemany("""
+                    EXEC logs ?, ?, ?, ?
+                """, error_logs)
+
+        conn.commit()
+
+    return {
+        "total": total_rows,
+        "inserted": total_inserted,
+        "failed": total_failed
+    }
+
+
+def process_excel_TimeOnStatus(file_path, conn):
+
+    df_Time_data = pd.read_excel(file_path,skiprows=6)
+    df_Time_data.columns = df_Time_data.columns.str.replace(" ", "").str.replace("%", "Percent")
+    time_columns = [
+            "AvailableTime", "HandlingTime", "WrapUpTime", "WorkingOfflineTime",
+            "OfferingTime", "OnBreakTime", "BusyTime","LoggedInTime"
+        ]
+
+    for col in time_columns:
+        if col in df_Time_data.columns:
+            df_Time_data[col] = pd.to_timedelta(df_Time_data[col])
+            df_Time_data[col] = df_Time_data[col].astype(str).str[-8:]
+            df_Time_data.columns = df_Time_data.columns.str.strip()
+
+    
+
+    total_rows = len(df_Time_data)
+    total_inserted = 0
+    total_failed = 0
+
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+
+    for start in range(0, total_rows, CHUNK_SIZE):
+
+        chunk = df_Time_data.iloc[start:start + CHUNK_SIZE]
+
+        validated_rows = []
+        error_logs = []
+
+        for index, row in chunk.iterrows():
+
+            try:
+                validated = TimeOnStatusSchema(
+                    StartTime=row["StartTime"],
+                    EndTime=row["EndTime"],
+                    Agent=row["Agent"],
+                    AgentId=row["AgentId"],
+                    AvailableTime=row["AvailableTime"],
+                    AvailableTimePercent=row["AvailableTimePercent"],
+                    HandlingTime=row["HandlingTime"],
+                    HandlingTimePercent=row["HandlingTimePercent"],
+                    WrapUpTime=row["WrapUpTime"],
+                    WrapUpTimePercent=row["WrapUpTimePercent"],
+                    WorkingOfflineTime=row["WorkingOfflineTime"],
+                    WorkingOfflineTimePercent=row["WorkingOfflineTimePercent"],
+                    OfferingTime=row["OfferingTime"],
+                    OfferingTimePercent=row["OfferingTimePercent"],
+                    OnBreakTime=row["OnBreakTime"],
+                    OnBreakTimePercent=row["OnBreakTimePercent"],
+                    BusyTime=row["BusyTime"],
+                    BusyTimePercent=row["BusyTimePercent"],
+                    LoggedInTime=row["LoggedInTime"]
+                )
+
+                validated_rows.append(tuple(validated.model_dump().values()))
+
+            except Exception as e:
+                total_failed += 1
+                error_logs.append((
+                    int(index),
+                    "Validation",
+                    str(e),
+                    json.dumps(row.to_dict(), default=str)
+                ))
+
+        # Insert valid rows
+        if validated_rows:
+            try:
+                cursor.executemany("""
+                    EXEC sp_InsertAgentTimeOnStatus ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
