@@ -9,7 +9,7 @@ __pycache__/
 *.pyo
 
 # Environment variables
-.env
+app/.env
 
 # VS Code
 .vscode/
