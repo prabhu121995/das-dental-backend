@@ -1,117 +1,35 @@
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*.env
 
 # Virtual Environment
 venv/
 env/
 .venv/
 ENV/
-venv.bak/
-env.bak/
 
 # Django
 *.log
-local_settings.py
 db.sqlite3
-db.sqlite3-journal
-*.pot
-*.pyc
-__pycache__/
-locale/
-
-# Environment variables
-.env
-.env.local
-.env.production
-.env.development
-.env.staging
-*.env
+local_settings.py
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
-.project
-.pydevproject
-.settings/
 
-# Database
-*.sql
-*.sqlite3
-*.db
-*.sqlite
-
-# Media and Static files
+# Media
 media/
 static/
-staticfiles/
 uploads/
-mediafiles/
-static_root/
-media_root/
-
-# Logs
-logs/
-*.log
-*.log.*
-
-# Testing
-.coverage
-htmlcov/
-.tox/
-.pytest_cache/
-.cache/
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
-test*.py
-
-# Distribution / packaging
-build/
-dist/
-*.egg-info/
-*.egg
-MANIFEST
-wheels/
-.eggs/
-downloads/
-eggs/
-sdist/
-var/
-
-# Jupyter Notebooks
-.ipynb_checkpoints
-*.ipynb
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# Project specific
-uploads/
-backups/
-temp/
-tmp/
-
-# Docker (if you're using it)
-docker-compose.override.yml
-Dockerfile.local
-.dockerignore
-
-# Secrets and keys
-*.pem
-*.key
-*.crt
-secrets.json
-credentials.json
