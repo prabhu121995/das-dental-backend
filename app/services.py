@@ -5,12 +5,68 @@ import pandas as pd
 import os
 from pathlib import Path
 import json
-from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TimeOnStatusSchema, transaction_schema,RefusedSchema
+from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TimeOnStatusSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
 
 
 CHUNK_SIZE = 5000
 
-def process_excel_logindata(file_path, conn):
+
+def process_update_login_data(data, conn, user_id):
+     
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+
+    validated_rows = []
+    error_logs = []
+    message = ""
+
+    try:
+        validated = UpdateLoginRequest(
+            id=data.id,
+            Login_Time=data.Login_Time,
+            Logout_Time=data.Logout_Time,
+            Duration=data.Duration,
+            Notes=data.Notes,
+            updated_by=user_id
+        )
+
+        validated_rows.append(tuple(validated.model_dump().values()))
+
+    except Exception as e:
+        error_logs.append((
+            int(data.id) if data.id else None,
+            "Validation",
+            str(e),
+            json.dumps(data.model_dump(), default=str)
+        ))
+
+    if validated_rows:
+        try:
+            cursor.executemany("""
+                EXEC sp_UpdateAgentLoginTime ?, ?, ?, ?,?,?
+            """, validated_rows)
+            message = "Login data updated successfully"
+
+        except Exception as e:
+            for row_data in validated_rows:
+                error_logs.append((
+                    None,
+                    "Database",
+                    str(e),
+                    json.dumps(row_data, default=str)
+                ))
+
+    if error_logs:
+            cursor.executemany("""
+                    EXEC logs ?, ?, ?, ?
+                """, error_logs)
+            message = "Errors occurred during update. Check logs for details."
+    
+    conn.commit()
+    cursor.close()
+    return {"message": message}
+
+def process_excel_logindata(file_path, conn, user_id):
 
     df = pd.read_excel(file_path,skiprows=6)
     df.columns = df.columns.str.strip()
@@ -56,7 +112,8 @@ def process_excel_logindata(file_path, conn):
                     Agent_Id=str(row["Agent Id"]),
                     Login_Time=row["Login Time"],
                     Logout_Time=row["Logout Time"],
-                    Duration=str(row["Duration"])
+                    Duration=str(row["Duration"]),
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -74,7 +131,7 @@ def process_excel_logindata(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC insert_agent ?, ?, ?, ?, ?, ?
+                    EXEC insert_agent ?, ?, ?, ?, ?, ?, ?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -105,7 +162,7 @@ def process_excel_logindata(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_daily_breakdata(file_path, conn):
+def process_excel_daily_breakdata(file_path, conn, user_id):
 
     df_Break_data = pd.read_excel(file_path,skiprows=6)
     df_Break_data.columns = df_Break_data.columns.str.replace(" ", "")
@@ -149,7 +206,8 @@ def process_excel_daily_breakdata(file_path, conn):
                     GroupName=str(row["GroupName"]),
                     TimeValue=str(row["TimeValue"]),
                     TimePercentage=float(row["TimePercentage"]),
-                    LoggedInTime=str(row["LoggedInTime"])
+                    LoggedInTime=str(row["LoggedInTime"]),
+                    user_id=user_id
                     )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -167,7 +225,7 @@ def process_excel_daily_breakdata(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertAgentBreak_Data ?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertAgentBreak_Data ?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -198,7 +256,7 @@ def process_excel_daily_breakdata(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_time_on_status(file_path, conn):
+def process_excel_time_on_status(file_path, conn, user_id):
 
     df_Time_data = pd.read_excel(file_path,skiprows=6)
     df_Time_data.columns = df_Time_data.columns.str.replace(" ", "").str.replace("%", "Percent")
@@ -251,7 +309,8 @@ def process_excel_time_on_status(file_path, conn):
                     OnBreakTimePercent=row["OnBreakTimePercent"],
                     BusyTime=row["BusyTime"],
                     BusyTimePercent=row["BusyTimePercent"],
-                    LoggedInTime=row["LoggedInTime"]
+                    LoggedInTime=row["LoggedInTime"],
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -269,7 +328,7 @@ def process_excel_time_on_status(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertAgentTimeOnStatus ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertAgentTimeOnStatus ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -300,7 +359,7 @@ def process_excel_time_on_status(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_refused(file_path, conn):
+def process_excel_refused(file_path, conn, user_id):
 
     df_Refused_data = pd.read_excel(file_path,skiprows=6)
     df_Refused_data.columns = df_Refused_data.columns.str.replace(" ", "").str.replace("%", "Percent").str.replace("(", "").str.replace(")", "")
@@ -333,16 +392,19 @@ def process_excel_refused(file_path, conn):
 
             try:
                 validated = RefusedSchema(
-                    Date=row["Date"],
-                    Agent=str(row["Agent"]),
-                    AgentId=str(row["AgentId"]),
-                    RefusedCount=int(row["RefusedCount"]),
-                    AverageHandlingTime=str(row["AverageHandlingTime"]),
-                    AverageHandlingTimePercent=float(row["AverageHandlingTimePercent"]),
-                    AverageWrapUpTime=str(row["AverageWrapUpTime"]),
-                    AverageWrapUpTimePercent=float(row["AverageWrapUpTimePercent"]),
-                    AverageBusyTime=str(row["AverageBusyTime"]),
-                    AverageBusyTimePercent=float(row["AverageBusyTimePercent"])
+                    StartTime=row["StartTime"],
+                    EndTime=row["EndTime"],
+                    Agent=row["Agent"],
+                    AgentId=row["AgentId"],
+                    Accepted=row["Accepted"],
+                    presented=row["Presented"],
+                    Rejected=row["Rejected"],
+                    AcceptedPercent=row["AcceptedPercent"],
+                    RejectedPercent=row["RejectedPercent"],
+                    AverageHandlingTime=row["AverageHandlingTime"],
+                    AverageWrapUpTime=row["AverageWrapUpTime"],
+                    AverageBusyTime=row["AverageBusyTime"],
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -360,7 +422,7 @@ def process_excel_refused(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertRefused ?,?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertRefused ?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -391,7 +453,7 @@ def process_excel_refused(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_transaction_data(file_path, conn):
+def process_excel_transaction_data(file_path, conn, user_id):
 
     df_trn_data = pd.read_excel(file_path)
     df_trn_data.columns = df_trn_data.columns.str.replace(" ", "").str.replace("%", "Percent").str.replace("(", "").str.replace(")", "")
@@ -473,7 +535,8 @@ def process_excel_transaction_data(file_path, conn):
                     Hold=str(row["Hold"]),
                     HoldDuration=str(row["HoldDuration"]),
                     WrapUpCodeListID=str(row["WrapUpCodeListID"]),
-                    WrapUpCodeText=str(row["WrapUpCodeText"])
+                    WrapUpCodeText=str(row["WrapUpCodeText"]),
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -491,7 +554,7 @@ def process_excel_transaction_data(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertTransactionData ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertTransactionData ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -522,7 +585,7 @@ def process_excel_transaction_data(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_form_submission_data(file_path, conn):
+def process_excel_form_submission_data(file_path, conn, user_id):
 
     df_fssc_data = pd.read_excel(file_path)
     df_fssc_data.columns = df_fssc_data.columns.str.replace(" ", "").str.replace("%", "Percent").str.replace("(", "").str.replace(")", "")
@@ -569,7 +632,8 @@ def process_excel_form_submission_data(file_path, conn):
                     FirstTouchUser=str(row["FirstTouchUser"]),
                     TimetoFirstTouchmins=int(row["TimetoFirstTouchmins"]) if not pd.isna(row["TimetoFirstTouchmins"]) else 0,
                     LastTouchDate=row["LastTouchDate"],
-                    LastTouchUser=str(row["LastTouchUser"])
+                    LastTouchUser=str(row["LastTouchUser"]),
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -587,7 +651,7 @@ def process_excel_form_submission_data(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertFSSCData ?,?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertFSSCData ?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -618,7 +682,7 @@ def process_excel_form_submission_data(file_path, conn):
         "failed": total_failed
     }
 
-def process_excel_modmed_data(file_path1, file_path2, conn):
+def process_excel_modmed_data(file_path1, file_path2, conn, user_id):
 
     df_dtrc_data = pd.read_excel(file_path1)
     df_florida_data = pd.read_excel(file_path2)
@@ -664,7 +728,8 @@ def process_excel_modmed_data(file_path1, file_path2, conn):
                     AppointmentStatus=str(row["AppointmentStatus"]),
                     AppointmentRescheduled=str(row["AppointmentRescheduled"]),
                     AppointmentCount=int(row["AppointmentCount"]) if not pd.isna(row["AppointmentCount"]) else 0,
-                    PrimaryProvider=str(row["PrimaryProvider"])
+                    PrimaryProvider=str(row["PrimaryProvider"]),
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -682,7 +747,7 @@ def process_excel_modmed_data(file_path1, file_path2, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertModmed ?,?,?,?,?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertModmed ?,?,?,?,?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)
@@ -713,7 +778,7 @@ def process_excel_modmed_data(file_path1, file_path2, conn):
         "failed": total_failed
     }
 
-def process_excel_nextch_data(file_path, conn):
+def process_excel_nextch_data(file_path, conn, user_id):
 
     df_nxt_data = pd.read_excel(file_path,skiprows=9)
     
@@ -762,7 +827,8 @@ def process_excel_nextch_data(file_path, conn):
                     Purpose=str(row["Purpose"]) if not pd.isna(row["Purpose"]) else None,
                     WebSite=str(row["WebSite"]) if not pd.isna(row["WebSite"]) else None,
                     Location=str(row["Location"]) if not pd.isna(row["Location"]) else None,
-                    user_name=str(row["user_name"]) if not pd.isna(row["user_name"]) else None
+                    user_name=str(row["user_name"]) if not pd.isna(row["user_name"]) else None,
+                    user_id=user_id
                 )
 
                 validated_rows.append(tuple(validated.model_dump().values()))
@@ -780,7 +846,7 @@ def process_excel_nextch_data(file_path, conn):
         if validated_rows:
             try:
                 cursor.executemany("""
-                    EXEC sp_InsertNextech ?,?,?,?,?,?,?,?,?
+                    EXEC sp_InsertNextech ?,?,?,?,?,?,?,?,?,?
                 """, validated_rows)
 
                 total_inserted += len(validated_rows)

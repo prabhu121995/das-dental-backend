@@ -3,6 +3,20 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
+class UpdateLoginRequest(BaseModel):
+    id: int
+    Login_Time: datetime
+    Logout_Time: datetime
+    Duration: str
+    Notes: Optional[str] = None
+    updated_by: Optional[int] = None 
+
+    @field_validator("id")
+    def id_not_empty(cls, v):
+        if not v:
+            raise ValueError("ID cannot be empty")
+        return v
+
 class AgentSchema(BaseModel):
     Date: date
     Agent: str
@@ -10,6 +24,7 @@ class AgentSchema(BaseModel):
     Login_Time: datetime
     Logout_Time: datetime
     Duration: str
+    user_id: Optional[int] = None
 
     @field_validator("Agent")
     def agent_not_empty(cls, v):
@@ -29,6 +44,7 @@ class BreakDataSchema(BaseModel):
     TimeValue: Optional[str] = None
     TimePercentage: Optional[float] = None
     LoggedInTime: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("Agent")
     def agent_not_empty(cls, v):
@@ -56,6 +72,7 @@ class TimeOnStatusSchema(BaseModel):
     BusyTime: Optional[time] = None
     BusyTimePercent: Optional[float] = None
     LoggedInTime: Optional[time] = None
+    user_id: Optional[int] = None
 
     @field_validator("Agent")
     def agent_not_empty(cls, v):
@@ -89,6 +106,7 @@ class RefusedSchema(BaseModel):
     AverageHandlingTime: Optional[str] = None
     AverageWrapUpTime: Optional[str] = None
     AverageBusyTime: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("Agent")
     def agent_not_empty(cls, v):
@@ -123,6 +141,7 @@ class transaction_schema(BaseModel):
     HoldDuration: Optional[str] = '00:00:00'
     WrapUpCodeListID: Optional[str] = None
     WrapUpCodeText: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("TransactionID")
     def transaction_not_empty(cls, v):
@@ -142,6 +161,7 @@ class FSSCDataSchema(BaseModel):
     TimetoFirstTouchmins: Optional[int] = 0
     LastTouchDate: Optional[datetime] = None
     LastTouchUser: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("rec_id")
     def rec_id_not_empty(cls, v):
@@ -162,6 +182,7 @@ class ModmedSchema(BaseModel):
     AppointmentRescheduled: Optional[str] = None
     AppointmentCount: Optional[int] = 0
     PrimaryProvider: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("PatientName")
     def patient_name_not_empty(cls, v):
@@ -179,9 +200,14 @@ class NextechSchema(BaseModel):
     WebSite: Optional[str] = None
     Location: Optional[str] = None
     user_name: Optional[str] = None
+    user_id: Optional[int] = None
 
     @field_validator("PatientName")
     def patient_name_not_empty(cls, v):
         if v is not None and not str(v).strip():
             raise ValueError("Patient name cannot be empty")
         return v
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
