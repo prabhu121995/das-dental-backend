@@ -8,7 +8,7 @@ class UpdateLoginRequest(BaseModel):
     Login_Time: datetime
     Logout_Time: datetime
     Duration: str
-    Notes: Optional[str] = None
+    Notes: str
     updated_by: Optional[int] = None 
 
     @field_validator("id")
@@ -32,6 +32,32 @@ class AgentSchema(BaseModel):
             raise ValueError("Agent name cannot be empty")
         return v
 
+
+class UpdateBreakDataSchema(BaseModel):
+    id: int
+    StartTime: datetime
+    EndTime: datetime
+    Status: str
+    StatusCodeItem: Optional[str] = None
+    StatusCodeList: Optional[str] = None
+    TimeValue: Optional[str] = None
+    TimePercentage: Optional[float] = None
+    LoggedInTime: Optional[str] = None
+    Notes: str
+    updated_by: Optional[int] = None
+
+    @field_validator("id")
+    def id_not_empty(cls, v):
+        if not v:
+            raise ValueError("ID cannot be empty")
+        return v
+    @field_validator("Notes")
+    def notes_not_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Notes cannot be empty")
+        return v
+
+
 class BreakDataSchema(BaseModel):
     StartTime: datetime
     EndTime: datetime
@@ -50,6 +76,36 @@ class BreakDataSchema(BaseModel):
     def agent_not_empty(cls, v):
         if not v.strip():
             raise ValueError("Break Data cannot be empty")
+        return v
+
+
+class UpdateAgentTimeOnStatusRequest(BaseModel):
+
+    Id: int
+    StartTime: datetime
+    EndTime: datetime
+    AvailableTime: str
+    AvailableTimePercent: str
+    HandlingTime: str
+    HandlingTimePercent: str
+    WrapUpTime: str
+    WrapUpTimePercent: str
+    WorkingOfflineTime: str
+    WorkingOfflineTimePercent: str
+    OfferingTime: str
+    OfferingTimePercent: str
+    OnBreakTime: str
+    OnBreakTimePercent: str
+    BusyTime: str
+    BusyTimePercent: str
+    LoggedInTime: str
+    Notes: str 
+    updated_by: Optional[int] = None
+
+    @field_validator("Notes")
+    def notes_not_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError("Notes cannot be empty")
         return v
 
 class TimeOnStatusSchema(BaseModel):

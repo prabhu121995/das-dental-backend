@@ -5,11 +5,184 @@ import pandas as pd
 import os
 from pathlib import Path
 import json
-from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TimeOnStatusSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
+from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TimeOnStatusSchema, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
 
 
 CHUNK_SIZE = 5000
 
+def process_update_time_on_status(data, conn, user_id):
+
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+
+    validated_rows = []
+    error_logs = []
+    message = ""
+
+    try:
+
+        validated = UpdateAgentTimeOnStatusRequest(
+            Id=data.Id,
+            StartTime=data.StartTime,
+            EndTime=data.EndTime,
+            AvailableTime=data.AvailableTime,
+            AvailableTimePercent=data.AvailableTimePercent,
+            HandlingTime=data.HandlingTime,
+            HandlingTimePercent=data.HandlingTimePercent,
+            WrapUpTime=data.WrapUpTime,
+            WrapUpTimePercent=data.WrapUpTimePercent,
+            WorkingOfflineTime=data.WorkingOfflineTime,
+            WorkingOfflineTimePercent=data.WorkingOfflineTimePercent,
+            OfferingTime=data.OfferingTime,
+            OfferingTimePercent=data.OfferingTimePercent,
+            OnBreakTime=data.OnBreakTime,
+            OnBreakTimePercent=data.OnBreakTimePercent,
+            BusyTime=data.BusyTime,
+            BusyTimePercent=data.BusyTimePercent,
+            LoggedInTime=data.LoggedInTime,
+            Notes=data.Notes,
+            updated_by=user_id
+        )
+
+        validated_rows.append((
+            validated.Id,
+            validated.StartTime,
+            validated.EndTime,
+            validated.AvailableTime,
+            validated.AvailableTimePercent,
+            validated.HandlingTime,
+            validated.HandlingTimePercent,
+            validated.WrapUpTime,
+            validated.WrapUpTimePercent,
+            validated.WorkingOfflineTime,
+            validated.WorkingOfflineTimePercent,
+            validated.OfferingTime,
+            validated.OfferingTimePercent,
+            validated.OnBreakTime,
+            validated.OnBreakTimePercent,
+            validated.BusyTime,
+            validated.BusyTimePercent,
+            validated.LoggedInTime,
+            validated.Notes,
+            validated.updated_by
+        ))
+
+    except Exception as e:
+
+        error_logs.append((
+            data.Id if data.Id else None,
+            "Validation",
+            str(e),
+            json.dumps(data.model_dump(), default=str)
+        ))
+
+    if validated_rows:
+        try:
+
+            cursor.executemany("""
+                EXEC sp_UpdateAgentTimeOnStatus ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
+            """, validated_rows)
+
+            message = "Agent Time On Status updated successfully"
+
+        except Exception as e:
+
+            for row_data in validated_rows:
+                error_logs.append((
+                    None,
+                    "Database",
+                    str(e),
+                    json.dumps(row_data, default=str)
+                ))
+
+    if error_logs:
+
+        cursor.executemany("""
+            EXEC logs ?, ?, ?, ?
+        """, error_logs)
+
+        message = "Errors occurred during update. Check logs."
+
+    conn.commit()
+    cursor.close()
+
+    return {"message": message}
+
+def process_update_break_data(data, conn, user_id):
+
+    cursor = conn.cursor()
+    cursor.fast_executemany = True
+
+    validated_rows = []
+    error_logs = []
+    message = ""
+
+    try:
+        validated = UpdateBreakDataSchema(
+            id=data.id,
+            StartTime=data.StartTime,
+            EndTime=data.EndTime,
+            Status=data.Status,
+            StatusCodeItem=data.StatusCodeItem,
+            StatusCodeList=data.StatusCodeList,
+            TimeValue=data.TimeValue,
+            TimePercentage=data.TimePercentage,
+            LoggedInTime=data.LoggedInTime,
+            Notes=data.Notes,
+            updated_by=user_id
+        )
+
+        validated_rows.append((
+            validated.id,
+            validated.StartTime,
+            validated.EndTime,
+            validated.Status,
+            validated.StatusCodeItem,
+            validated.StatusCodeList,
+            validated.TimeValue,
+            validated.TimePercentage,
+            validated.LoggedInTime,
+            validated.Notes,
+            validated.updated_by
+        ))
+
+    except Exception as e:
+        error_logs.append((
+            None,
+            "Validation",
+            str(e),
+            json.dumps(data.model_dump(), default=str)
+        ))
+
+    if validated_rows:
+        try:
+
+            cursor.executemany("""
+                EXEC sp_UpdateAgentBreakData ?,?,?,?,?,?,?,?,?,?,?
+            """, validated_rows)
+
+            message = "Break data updated successfully"
+
+        except Exception as e:
+            for row_data in validated_rows:
+                error_logs.append((
+                    None,
+                    "Database",
+                    str(e),
+                    json.dumps(row_data, default=str)
+                ))
+
+    if error_logs:
+        cursor.executemany("""
+            EXEC logs ?, ?, ?, ?
+        """, error_logs)
+
+        message = "Errors occurred during update. Check logs."
+
+    conn.commit()
+    cursor.close()
+
+    return {"message": message}
 
 def process_update_login_data(data, conn, user_id):
      

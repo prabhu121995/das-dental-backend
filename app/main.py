@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, Depends,APIRouter
 
-from app.schemas import UpdateLoginRequest
-from .services import process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_login_data
+from app.schemas import UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
+from .services import process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from .dependencies import get_db
 from .auth_service import login_user
 from .jwt_handler import create_token, require_role
@@ -215,7 +215,7 @@ async def upload_refused_data(
         "data": result
     }
 
-@app.post("/update-login-time", tags=["DAS Update Module"],)
+@app.put("/update-login-time", tags=["DAS Update Module"],)
 def update_login_time(
     data: UpdateLoginRequest,
     conn = Depends(get_db),
@@ -223,6 +223,35 @@ def update_login_time(
 ):
     user_id = user["user_id"]
     result = process_update_login_data(data, conn, user_id)
+    return {
+        "status": "Completed",
+        "data": result
+    }
+
+
+@app.put("/update-break-data", tags=["DAS Update Module"])
+async def update_break_data(
+    data: UpdateBreakDataSchema,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = process_update_break_data(data, conn, user["user_id"])
+
+    return {
+        "status": "Completed",
+        "data": result
+    }
+
+@app.put("/update-time-on-status", tags=["DAS Update Module"])
+async def update_time_on_status(
+    data: UpdateAgentTimeOnStatusRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = process_update_time_on_status(data, conn, user["user_id"])
+
     return {
         "status": "Completed",
         "data": result
