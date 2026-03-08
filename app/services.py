@@ -10,6 +10,52 @@ from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema,
 
 CHUNK_SIZE = 5000
 
+REPORT_TABLE_MAP = {
+    "login": ("agent_login", "shiftdate"),
+    "break": ("Agent_Break_Data", "StartTime"),
+    "status": ("AgentTimeOnStatus", "StartTime"),
+    "refused": ("Refused", "StartTime"),
+    "submission": ("FSSCData", "CreatedDate"),
+    "transaction": ("TransactionData", "TimeFinished"),
+    "modmed": ("Modmed", "AppointmentCreatedDate"),
+    "nextech": ("Nextech", "InputDate")
+}
+
+def process_delete_reports(data, conn):
+
+    cursor = conn.cursor()
+    result = []
+
+    for report in data.reports:
+
+        mapping = REPORT_TABLE_MAP.get(report.lower())
+
+        if not mapping:
+            result.append({
+                "report": report,
+                "message": "Invalid report name"
+            })
+            continue
+
+        table, date_column = mapping
+
+        cursor.execute(
+            "EXEC sp_DeleteReportByDate ?, ?, ?",
+            table,
+            date_column,
+            data.shiftdate
+        )
+
+        result.append({
+            "report": report,
+            "message": "Deleted successfully"
+        })
+
+    conn.commit()
+    cursor.close()
+
+    return {"result": result}
+
 def process_update_time_on_status(data, conn, user_id):
 
     cursor = conn.cursor()

@@ -1,7 +1,12 @@
-from typing import Optional
+from typing import Optional,List
 
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
+
+
+class DeleteReportRequest(BaseModel):
+    shiftdate: date
+    reports: List[str]
 
 class UpdateLoginRequest(BaseModel):
     id: int

@@ -1,11 +1,12 @@
 from dotenv import load_dotenv
-from fastapi import FastAPI, UploadFile, File, Depends,APIRouter
+from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
 
-from app.schemas import UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
-from .services import process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import DeleteReportRequest, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
+from .services import process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from .dependencies import get_db
 from .auth_service import login_user
 from .jwt_handler import create_token, require_role
+from datetime import date
 import shutil
 import os
 import warnings
@@ -126,6 +127,7 @@ async def upload_transaction_data(  # Changed endpoint name
 @app.post("/upload-excel-form-submissions/", tags=["DAS Module"])
 async def upload_form_submission_data(  # Changed endpoint name
     file: UploadFile = File(...),
+    shiftdate: date = Form(...),# Need to work single date convert into date range in service layer
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
 ):
     temp_path = f"temp_{file.filename}"
@@ -256,6 +258,15 @@ async def update_time_on_status(
         "status": "Completed",
         "data": result
     }
+
+@app.delete("/delete-reports", tags=["DAS Delete Module"])
+async def delete_reports(
+    data: DeleteReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+
+    return process_delete_reports(data, conn)
 
 # ✅ include router AFTER routes
 app.include_router(
