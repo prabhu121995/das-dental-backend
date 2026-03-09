@@ -1,5 +1,5 @@
 import re
-
+import calendar
 import numpy as np
 import pandas as pd
 import os
@@ -21,38 +21,96 @@ REPORT_TABLE_MAP = {
     "nextech": ("Nextech", "InputDate")
 }
 
+
+def get_agent_login_by_date(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetAgentLoginByDate ?",
+        data.shiftdate
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+
+
+
 def process_delete_reports(data, conn):
 
     cursor = conn.cursor()
     result = []
 
-    for report in data.reports:
+    try:
+        shiftdate = data["shiftdate"]
+        reports = data["reports"]
 
-        mapping = REPORT_TABLE_MAP.get(report.lower())
+        for report in reports:
 
-        if not mapping:
-            result.append({
-                "report": report,
-                "message": "Invalid report name"
-            })
-            continue
+            try:
+                mapping = REPORT_TABLE_MAP.get(report.lower())
 
-        table, date_column = mapping
+                if not mapping:
+                    result.append({
+                        "report": report,
+                        "message": "Invalid report name"
+                    })
+                    continue
 
-        cursor.execute(
-            "EXEC sp_DeleteReportByDate ?, ?, ?",
-            table,
-            date_column,
-            data.shiftdate
-        )
+                table, date_column = mapping
 
-        result.append({
-            "report": report,
-            "message": "Deleted successfully"
-        })
+                # ⭐ Special logic for submission
+                if report.lower() == "submission":
 
-    conn.commit()
-    cursor.close()
+                    start_date = shiftdate.replace(day=1)
+
+                    last_day = calendar.monthrange(shiftdate.year, shiftdate.month)[1]
+                    end_date = shiftdate.replace(day=last_day)
+
+                else:
+                    start_date = shiftdate
+                    end_date = shiftdate
+
+                cursor.execute(
+                    "EXEC sp_DeleteReportByDateRange ?, ?, ?, ?",
+                    table,
+                    date_column,
+                    start_date,
+                    end_date
+                )
+
+                result.append({
+                    "report": report,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "message": "Deleted successfully"
+                })
+
+            except Exception as report_error:
+
+                result.append({
+                    "report": report,
+                    "error": str(report_error)
+                })
+
+        conn.commit()
+
+    except Exception as e:
+        conn.rollback()
+
+        return {
+            "message": "Delete operation failed",
+            "error": str(e)
+        }
+
+    finally:
+        cursor.close()
 
     return {"result": result}
 
@@ -147,7 +205,10 @@ def process_update_time_on_status(data, conn, user_id):
             EXEC logs ?, ?, ?, ?
         """, error_logs)
 
-        message = "Errors occurred during update. Check logs."
+        return {
+                "message": "Update operation failed",
+                "error": str(e)
+            }
 
     conn.commit()
     cursor.close()
@@ -223,7 +284,10 @@ def process_update_break_data(data, conn, user_id):
             EXEC logs ?, ?, ?, ?
         """, error_logs)
 
-        message = "Errors occurred during update. Check logs."
+        return {
+                "message": "Update operation failed",
+                "error": str(e)
+            }
 
     conn.commit()
     cursor.close()
@@ -279,7 +343,10 @@ def process_update_login_data(data, conn, user_id):
             cursor.executemany("""
                     EXEC logs ?, ?, ?, ?
                 """, error_logs)
-            message = "Errors occurred during update. Check logs for details."
+            return {
+                "message": "Update operation failed due to database error",
+                "error": str(e)
+            }
     
     conn.commit()
     cursor.close()
@@ -374,6 +441,11 @@ def process_excel_logindata(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -468,6 +540,11 @@ def process_excel_daily_breakdata(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -571,6 +648,11 @@ def process_excel_time_on_status(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -665,6 +747,11 @@ def process_excel_refused(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -797,6 +884,11 @@ def process_excel_transaction_data(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -894,6 +986,11 @@ def process_excel_form_submission_data(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -990,6 +1087,11 @@ def process_excel_modmed_data(file_path1, file_path2, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,
@@ -1089,6 +1191,11 @@ def process_excel_nextch_data(file_path, conn, user_id):
                 """, error_logs)
 
         conn.commit()
+        if error_logs:
+            return {
+                    "message": "upload operation failed due to database error",
+                    "error": str(error_logs[0][2])
+                }
 
     return {
         "total": total_rows,

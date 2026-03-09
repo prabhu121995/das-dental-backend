@@ -1,5 +1,4 @@
 from typing import List, Union
-
 from jose import jwt
 from datetime import datetime, timedelta
 from fastapi import Depends, HTTPException
