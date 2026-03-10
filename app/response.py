@@ -1,11 +1,13 @@
-from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
+from starlette.responses import JSONResponse
 
-def api_response(status: str, data=None, message: str = None, status_code: int = 200):
+def api_response(status, message=None, data=None, status_code=200):
+
     return JSONResponse(
         status_code=status_code,
         content={
             "status": status,
             "message": message,
-            "data": data
+            "data": jsonable_encoder(data)
         }
     )

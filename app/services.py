@@ -15,20 +15,29 @@ REPORT_TABLE_MAP = {
     "break": ("Agent_Break_Data", "StartTime"),
     "status": ("AgentTimeOnStatus", "StartTime"),
     "refused": ("Refused", "StartTime"),
-    "submission": ("FSSCData", "CreatedDate"),
+    "submission": ("FSSCData", "Date"),
     "transaction": ("TransactionData", "TimeFinished"),
     "modmed": ("Modmed", "AppointmentCreatedDate"),
     "nextech": ("Nextech", "InputDate")
 }
 
-
-def get_agent_login_by_date(data, conn):
+def get_report_data(data, conn):
 
     cursor = conn.cursor()
 
+    mapping = REPORT_TABLE_MAP.get(data.report.lower())
+
+    if not mapping:
+        return {"error": "Invalid report name"}
+
+    table, date_column = mapping
+
     cursor.execute(
-        "EXEC sp_GetAgentLoginByDate ?",
-        data.shiftdate
+        "EXEC sp_GetReportByDateRange ?, ?, ?, ?",
+        table,
+        date_column,
+        data.start_date,
+        data.end_date
     )
 
     columns = [col[0] for col in cursor.description]
@@ -38,9 +47,6 @@ def get_agent_login_by_date(data, conn):
     cursor.close()
 
     return rows
-
-
-
 
 def process_delete_reports(data, conn):
 

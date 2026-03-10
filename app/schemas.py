@@ -2,23 +2,10 @@ from typing import Optional,List
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
-class AgentLoginRequest(BaseModel):
-    startdate: date
-    enddate: date
-
-class AgentLoginResponse(BaseModel):
-    id: int
-    shiftdate: date
-    agent: str
-    agent_id: int
-    login_time: Optional[datetime]
-    logout_time: Optional[datetime]
-    duration: Optional[str]
-    CreatedAt: Optional[datetime]
-    agent_name: Optional[str] = None
-    notes: Optional[str]
-    updatedby: Optional[int]
-    updated_at: Optional[datetime]
+class ReportRequest(BaseModel):
+    report: str
+    start_date: date
+    end_date: date
 
 class DeleteReportRequest(BaseModel):
     shiftdate: date

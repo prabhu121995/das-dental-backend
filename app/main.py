@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
 from app.response import api_response
-from app.schemas import AgentLoginRequest, AgentLoginResponse, DeleteReportRequest, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
-from .services import get_agent_login_by_date, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import  DeleteReportRequest, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
+from .services import  get_report_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from .dependencies import get_db
 from .auth_service import login_user
 from .jwt_handler import create_token, require_role
@@ -12,6 +12,7 @@ import shutil
 import os
 import warnings
 import uuid
+from fastapi.encoders import jsonable_encoder
 warnings.filterwarnings("ignore", category=UserWarning)
 load_dotenv()
 
@@ -40,26 +41,29 @@ def login(data: dict):
         "role": user["role"]
     }
 
-@app.post(
-    "/get-agent-login",
-    response_model=List[AgentLoginResponse],
-    tags=["DAS Module"]
-)
-async def get_agent_login(
-    data: AgentLoginRequest,
+@app.post("/get-report-data", tags=["DAS Module"])
+async def get_report_data_api(
+    data: ReportRequest,
     conn = Depends(get_db),
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_agent_login_by_date(data, conn)
+    result = get_report_data(data, conn)
+
+    if isinstance(result, dict) and result.get("error"):
+        return api_response(
+            status="failed",
+            message="Invalid report",
+            data=result,
+            status_code=400
+        )
 
     return api_response(
         status="success",
-        message="Agent login data fetched successfully",
-        data=result,
+        message="Report fetched successfully",
+        data=jsonable_encoder(result),   # ⭐ FIX
         status_code=200
     )
-
 
 @app.post("/upload-excel-loginData/", tags=["DAS Module"])
 async def upload_login_data(
