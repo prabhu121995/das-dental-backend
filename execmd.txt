@@ -10,3 +10,10 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
   "shiftdate": "2026-03-08",
   "reports": ["login", "break", "status"]
 }
+
+{
+  "shiftdate": "2025-10-30",
+  "reports": [
+    "login","break","status","refused","submission","transaction","modmed","nextech"
+  ]
+}

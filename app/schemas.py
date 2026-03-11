@@ -3,9 +3,231 @@ from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
 class ReportRequest(BaseModel):
-    report: str
     start_date: date
     end_date: date
+    page: int = 1
+    page_size: int = 100
+
+class TransactionResponse(BaseModel):
+
+    Id: int
+    TimeFinished: datetime
+
+    TransactionID: Optional[str]
+    OriginalTransactionID: Optional[str]
+
+    MediaType: Optional[str]
+    CreationTime: Optional[datetime]
+
+    Direction: Optional[str]
+    Type: Optional[str]
+
+    ChannelID: Optional[str]
+    QueueName: Optional[str]
+
+    Origination: Optional[str]
+    Destination: Optional[str]
+
+    CustomerName: Optional[str]
+    CaseNumber: Optional[str]
+
+    OutboundPhoneShortCode: Optional[str]
+    OutboundPhoneCodeText: Optional[str]
+
+    Participant: Optional[str]
+
+    OfferActionTime: Optional[datetime]
+
+    HandlingDuration: Optional[str]
+    WrapUpDuration: Optional[str]
+    ProcessingDuration: Optional[str]
+
+    TimetoAbandon: Optional[str]
+
+    RecordingFilenames: Optional[str]
+
+    IVRTreatmentDuration: Optional[str]
+
+    Hold: Optional[str]
+    HoldDuration: Optional[str]
+
+    WrapUpCodeListID: Optional[str]
+    WrapUpCodeText: Optional[str]
+
+    createdDate: Optional[date]
+
+    agent_name: Optional[str]
+
+class RefusedResponse(BaseModel):
+
+    Id: int
+    StartTime: date
+    EndTime: Optional[date]
+
+    Agent: Optional[str]
+    AgentId: Optional[int]
+
+    Accepted: Optional[int]
+    Rejected: Optional[int]
+    Presented: Optional[int]
+
+    AcceptedPercent: Optional[float]
+    RejectedPercent: Optional[float]
+
+    AverageHandlingTime: Optional[str]
+    AverageWrapUpTime: Optional[str]
+    AverageBusyTime: Optional[str]
+
+    CreatedDate: Optional[date]
+    agent_name: Optional[str]
+
+class NextechResponse(BaseModel):
+
+    Id: int
+
+    InputDate: Optional[date]
+
+    CreatedbyLogin: Optional[str]
+    PatientName: Optional[str]
+
+    ApptDate: Optional[date]
+    StartTime: Optional[str]
+
+    Purpose: Optional[str]
+    WebSite: Optional[str]
+
+    Location: Optional[str]
+
+    user_name: Optional[str]
+
+    CreatedDate: Optional[datetime]
+
+    agent_name: Optional[str]
+
+
+class ModmedResponse(BaseModel):
+
+    Id: int
+    PatientName: Optional[str]
+
+    PatientDOB: Optional[date]
+    PatientPreferredPhone: Optional[str]
+
+    AppointmentCreatedDate: Optional[date]
+    AppointmentCreatedBy: Optional[str]
+
+    Location: Optional[str]
+    AppointmentType: Optional[str]
+
+    AppointmentDate: Optional[date]
+    AppointmentTime: Optional[str]
+
+    AppointmentStatus: Optional[str]
+    AppointmentRescheduled: Optional[str]
+
+    AppointmentCount: Optional[int]
+
+    PrimaryProvider: Optional[str]
+
+    CreatedDate: Optional[datetime]
+    agent_name: Optional[str]
+
+class FSSCResponse(BaseModel):
+
+    Id: int
+    rec_id: Optional[str]
+
+    Date: date
+    Location: Optional[str]
+    Form: Optional[str]
+
+    SourceURL: Optional[str]
+    Status: Optional[str]
+    Reason: Optional[str]
+
+    FirstTouchDate: Optional[datetime]
+    FirstTouchUser: Optional[str]
+
+    TimetoFirstTouchmins: Optional[int]
+
+    LastTouchDate: Optional[datetime]
+    LastTouchUser: Optional[str]
+
+    CreatedDate: Optional[datetime]
+    agent_name: Optional[str]
+
+class AgentTimeOnStatusResponse(BaseModel):
+
+    Id: int
+    StartTime: datetime
+    EndTime: Optional[datetime]
+    Agent: str
+    AgentId: int
+
+    AvailableTime: Optional[str]
+    AvailableTimePercent: Optional[float]
+
+    HandlingTime: Optional[str]
+    HandlingTimePercent: Optional[float]
+
+    WrapUpTime: Optional[str]
+    WrapUpTimePercent: Optional[float]
+
+    WorkingOfflineTime: Optional[str]
+    WorkingOfflineTimePercent: Optional[float]
+
+    OfferingTime: Optional[str]
+    OfferingTimePercent: Optional[float]
+
+    OnBreakTime: Optional[str]
+    OnBreakTimePercent: Optional[float]
+
+    BusyTime: Optional[str]
+    BusyTimePercent: Optional[float]
+
+    LoggedInTime: Optional[str]
+
+    CreatedDate: Optional[datetime]
+    agent_name: Optional[str]
+
+    notes: Optional[str]
+    updatedby: Optional[str]
+    updated_at: Optional[datetime]
+
+
+class BreakDataResponse(BaseModel):
+    Id: int
+    StartTime: datetime
+    EndTime: Optional[datetime]
+    Agent: str
+    AgentId: int
+    Status: str
+    StatusCodeItem: Optional[str]
+    StatusCodeList: Optional[str]
+    GroupName: Optional[str]
+    TimeValue: Optional[str]
+    TimePercentage: Optional[float]
+    LoggedInTime: Optional[str]
+    CreatedAt: Optional[datetime]
+    agent_name: Optional[str] = None
+    notes: Optional[str]
+    updatedby: Optional[str]
+    updated_at: Optional[datetime]
+
+class AgentLoginResponse(BaseModel):
+    id: int
+    shiftdate: date
+    agent: str
+    agent_id: int
+    login_time: Optional[datetime]
+    logout_time: Optional[datetime]
+    duration: Optional[str]
+    CreatedAt: Optional[datetime]
+    agent_name: Optional[str] = None
+    notes: Optional[str]
+    updatedby: Optional[int]
+    updated_at: Optional[datetime]
+
 
 class DeleteReportRequest(BaseModel):
     shiftdate: date

@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
 from app.response import api_response
-from app.schemas import  DeleteReportRequest, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
-from .services import  get_report_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
+from .services import  get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from .dependencies import get_db
 from .auth_service import login_user
 from .jwt_handler import create_token, require_role
@@ -41,27 +41,161 @@ def login(data: dict):
         "role": user["role"]
     }
 
-@app.post("/get-report-data", tags=["DAS Module"])
-async def get_report_data_api(
+
+@app.post(
+    "/get-transaction-data",
+    tags=["DAS Get Module"]
+)
+async def get_transaction_data_api(
     data: ReportRequest,
     conn = Depends(get_db),
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_report_data(data, conn)
-
-    if isinstance(result, dict) and result.get("error"):
-        return api_response(
-            status="failed",
-            message="Invalid report",
-            data=result,
-            status_code=400
-        )
+    result = get_transaction_data(data, conn)
 
     return api_response(
         status="success",
-        message="Report fetched successfully",
-        data=jsonable_encoder(result),   # ⭐ FIX
+        message="Transaction report fetched successfully",
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post(
+    "/get-refused-data",
+    tags=["DAS Get Module"]
+)
+async def get_refused_data_api(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_refused_data(data, conn)
+
+    return api_response(
+        status="success",
+        message="Refused report fetched successfully",
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post(
+    "/get-nextech-data",
+    tags=["DAS Get Module"]
+)
+async def get_nextech_data_api(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_nextech_data(data, conn)
+
+    return api_response(
+        status="success",
+        message="Nextech data fetched successfully",
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post(
+    "/get-agent-login",
+    response_model=List[AgentLoginResponse],
+    tags=["DAS Get Module"]
+)
+async def get_agent_login(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_agent_login_by_date(data, conn)
+
+    return api_response(
+        status="success",
+        message="Agent login data fetched successfully",
+        data=result,
+        status_code=200
+    )
+
+
+@app.post(
+    "/get-modmed-data",
+    tags=["DAS Get Module"]
+)
+async def get_modmed_data_api(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_modmed_data(data, conn)
+
+    return api_response(
+        status="success",
+        message="Modmed data fetched successfully",
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post(
+    "/get-break-data",
+    response_model=List[BreakDataResponse],
+    tags=["DAS Get Module"]
+)
+async def get_break_data(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_break_data_by_date_range(data, conn)
+
+    return api_response(
+        status="success",
+        message="Break data fetched successfully",
+        data=result,
+        status_code=200
+    )
+
+@app.post(
+    "/get-time-on-status",
+    response_model=List[AgentTimeOnStatusResponse],
+    tags=["DAS Get Module"]
+)
+async def get_time_on_status(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_time_on_status_by_date_range(data, conn)
+
+    return api_response(
+        status="success",
+        message="Agent Time On Status data fetched successfully",
+        data=result,
+        status_code=200
+    )
+
+@app.post(
+    "/get-submission-data",
+    response_model=List[FSSCResponse],
+    tags=["DAS Get Module"]
+)
+async def get_fssc_data(
+    data: ReportRequest,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result = get_fssc_data_by_date_range(data, conn)
+
+    return api_response(
+        status="success",
+        message="submission data fetched successfully",
+        data=result,
         status_code=200
     )
 

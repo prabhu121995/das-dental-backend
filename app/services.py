@@ -21,23 +21,156 @@ REPORT_TABLE_MAP = {
     "nextech": ("Nextech", "InputDate")
 }
 
-def get_report_data(data, conn):
+def get_transaction_data(data, conn):
 
     cursor = conn.cursor()
 
-    mapping = REPORT_TABLE_MAP.get(data.report.lower())
+    cursor.execute(
+        "EXEC sp_GetTransactionData ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
+    )
 
-    if not mapping:
-        return {"error": "Invalid report name"}
+    columns = [col[0] for col in cursor.description]
 
-    table, date_column = mapping
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_refused_data(data, conn):
+
+    cursor = conn.cursor()
 
     cursor.execute(
-        "EXEC sp_GetReportByDateRange ?, ?, ?, ?",
-        table,
-        date_column,
+        "EXEC sp_GetRefusedData ?, ?, ?, ?",
         data.start_date,
-        data.end_date
+        data.end_date,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_nextech_data(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetNextechByDateRange ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_modmed_data(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetModmedByDateRange ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_agent_login_by_date(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetAgentLoginByDaterange ?,?, ?, ?",
+        data.startdate,
+        data.enddate,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_break_data_by_date_range(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetAgentBreakDataByDateRange ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_time_on_status_by_date_range(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetAgentTimeOnStatusByDateRange ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
+    )
+
+    columns = [col[0] for col in cursor.description]
+
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows
+
+def get_fssc_data_by_date_range(data, conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetFSSCDataByDateRange ?, ?, ?, ?",
+        data.start_date,
+        data.end_date,
+        data.page,
+        data.page_size
     )
 
     columns = [col[0] for col in cursor.description]
