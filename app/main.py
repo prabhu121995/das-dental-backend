@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
-from app.response import api_response
+from app.response import api_response,api_get_response
 from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
 from .services import  get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from .dependencies import get_db
@@ -52,11 +52,12 @@ async def get_transaction_data_api(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_transaction_data(data, conn)
+    result, total_rows = get_transaction_data(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Transaction report fetched successfully",
+        total_rows=total_rows,
         data=jsonable_encoder(result),
         status_code=200
     )
@@ -71,11 +72,13 @@ async def get_refused_data_api(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_refused_data(data, conn)
+    result, total_rows = get_refused_data(data, conn)
 
-    return api_response(
+    return api_get_response(
+         
         status="success",
         message="Refused report fetched successfully",
+        total_rows=total_rows,
         data=jsonable_encoder(result),
         status_code=200
     )
@@ -90,12 +93,13 @@ async def get_nextech_data_api(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_nextech_data(data, conn)
+    result, total_rows = get_nextech_data(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Nextech data fetched successfully",
         data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -110,12 +114,13 @@ async def get_agent_login(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_agent_login_by_date(data, conn)
+    result, total_rows = get_agent_login_by_date(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Agent login data fetched successfully",
-        data=result,
+        data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -130,12 +135,13 @@ async def get_modmed_data_api(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_modmed_data(data, conn)
+    result, total_rows = get_modmed_data(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Modmed data fetched successfully",
         data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -150,12 +156,13 @@ async def get_break_data(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_break_data_by_date_range(data, conn)
+    result, total_rows = get_break_data_by_date_range(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Break data fetched successfully",
-        data=result,
+        data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -170,12 +177,13 @@ async def get_time_on_status(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_time_on_status_by_date_range(data, conn)
+    result, total_rows = get_time_on_status_by_date_range(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="Agent Time On Status data fetched successfully",
-        data=result,
+        data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -190,12 +198,13 @@ async def get_fssc_data(
     user = Depends(require_role(["Admin","TeamLeader"]))
 ):
 
-    result = get_fssc_data_by_date_range(data, conn)
+    result, total_rows = get_fssc_data_by_date_range(data, conn)
 
-    return api_response(
+    return api_get_response(
         status="success",
         message="submission data fetched successfully",
-        data=result,
+        data=jsonable_encoder(result),
+        total_rows=total_rows,
         status_code=200
     )
 
@@ -395,10 +404,10 @@ async def upload_form_submission_data(  # Changed endpoint name
         
         user_id = user["user_id"]
 
-        data = {
-        "shiftdate": shiftdate,
-        "reports": ["submission"]
-        }
+        data = DeleteReportRequest(
+            shiftdate=shiftdate,
+            reports=["submission"]
+        )
 
         delete_result = process_delete_reports(data, conn)
 

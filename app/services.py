@@ -15,7 +15,7 @@ REPORT_TABLE_MAP = {
     "break": ("Agent_Break_Data", "StartTime"),
     "status": ("AgentTimeOnStatus", "StartTime"),
     "refused": ("Refused", "StartTime"),
-    "submission": ("FSSCData", "Date"),
+    "submission": ("FSSCData", "CreatedDate"),
     "transaction": ("TransactionData", "TimeFinished"),
     "modmed": ("Modmed", "AppointmentCreatedDate"),
     "nextech": ("Nextech", "InputDate")
@@ -33,13 +33,18 @@ def get_transaction_data(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_refused_data(data, conn):
 
@@ -53,13 +58,18 @@ def get_refused_data(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_nextech_data(data, conn):
 
@@ -73,13 +83,18 @@ def get_nextech_data(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_modmed_data(data, conn):
 
@@ -93,13 +108,18 @@ def get_modmed_data(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+     # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_agent_login_by_date(data, conn):
 
@@ -107,19 +127,24 @@ def get_agent_login_by_date(data, conn):
 
     cursor.execute(
         "EXEC sp_GetAgentLoginByDaterange ?,?, ?, ?",
-        data.startdate,
-        data.enddate,
+        data.start_date,
+        data.end_date,
         data.page,
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_break_data_by_date_range(data, conn):
 
@@ -133,13 +158,18 @@ def get_break_data_by_date_range(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_time_on_status_by_date_range(data, conn):
 
@@ -153,13 +183,18 @@ def get_time_on_status_by_date_range(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def get_fssc_data_by_date_range(data, conn):
 
@@ -173,22 +208,27 @@ def get_fssc_data_by_date_range(data, conn):
         data.page_size
     )
 
-    columns = [col[0] for col in cursor.description]
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
 
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
 
     cursor.close()
 
-    return rows
+    return rows,total_rows
 
 def process_delete_reports(data, conn):
 
     cursor = conn.cursor()
     result = []
-
+    
     try:
-        shiftdate = data["shiftdate"]
-        reports = data["reports"]
+        shiftdate = data.shiftdate
+        reports = data.reports
 
         for report in reports:
 
@@ -204,7 +244,7 @@ def process_delete_reports(data, conn):
 
                 table, date_column = mapping
 
-                # ⭐ Special logic for submission
+                # Special logic for submission
                 if report.lower() == "submission":
 
                     start_date = shiftdate.replace(day=1)
