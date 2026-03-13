@@ -4,16 +4,20 @@ from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
 from app.response import api_response,api_get_response
 from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
 from .services import  get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from fastapi.middleware.cors import CORSMiddleware
+from .jwt_handler import create_token, require_role
+from fastapi.encoders import jsonable_encoder
+
 from .dependencies import get_db
 from .auth_service import login_user
-from .jwt_handler import create_token, require_role
 from datetime import date
 import shutil
 import os
 import warnings
-import uuid
-from fastapi.encoders import jsonable_encoder
 warnings.filterwarnings("ignore", category=UserWarning)
+
+import uuid
+
 load_dotenv()
 
 router = APIRouter()
@@ -25,6 +29,13 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],   # allow all
+    allow_credentials=True,
+    allow_methods=["*"],   # GET POST PUT DELETE etc
+    allow_headers=["*"],   # allow all headers
+)
 
 @router.post("/login")
 def login(data: dict):

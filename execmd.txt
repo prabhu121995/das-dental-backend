@@ -1,19 +1,8 @@
+pm2 delete all
+pm2 start ecosystem.config.js
+pm2 logs
+
+
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 
-
-{
-  "username": "admin1",
-  "password": "admin123"
-}
-
-{
-  "shiftdate": "2026-03-08",
-  "reports": ["login", "break", "status"]
-}
-
-{
-  "shiftdate": "2025-10-30",
-  "reports": [
-    "login","break","status","refused","submission","transaction","modmed","nextech"
-  ]
-}
+pm2 delete rcm-dental-api
