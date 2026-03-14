@@ -15,7 +15,7 @@ REPORT_TABLE_MAP = {
     "break": ("Agent_Break_Data", "StartTime"),
     "status": ("AgentTimeOnStatus", "StartTime"),
     "refused": ("Refused", "StartTime"),
-    "submission": ("FSSCData", "CreatedDate"),
+    "submission": ("FSSCData", "Date"),
     "transaction": ("TransactionData", "TimeFinished"),
     "modmed": ("Modmed", "AppointmentCreatedDate"),
     "nextech": ("Nextech", "InputDate")
