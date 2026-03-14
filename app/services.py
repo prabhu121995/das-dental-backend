@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 import os
 from pathlib import Path
+from typing import List, Optional, Tuple, Any
 import json
-from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TimeOnStatusSchema, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
+from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TeamCreate, TeamUpdate, TimeOnStatusSchema, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
 
 
 CHUNK_SIZE = 5000
@@ -20,6 +21,200 @@ REPORT_TABLE_MAP = {
     "modmed": ("Modmed", "AppointmentCreatedDate"),
     "nextech": ("Nextech", "InputDate")
 }
+
+def update_vonage_service(vonage_data, conn) -> bool:
+    """
+    Execute sp_VonageID_Update stored procedure
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_VonageID_Update
+                @id=?,
+                @name=?,
+                @eight_ID=?,
+                @Edgemd_ID=?,
+                @Modmed_ID=?,
+                @Team_ID=?,
+                @updatedBy=?,
+                @IsActive=?
+        """,
+        vonage_data.id,
+        vonage_data.name,
+        vonage_data.eight_ID,
+        vonage_data.Edgemd_ID,
+        vonage_data.Modmed_ID,
+        vonage_data.Team_ID,
+        vonage_data.updatedBy,
+        vonage_data.IsActive
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+
+def insert_vonage(vonage_data, conn) -> bool:
+    """
+    Execute sp_VonageID_Insert stored procedure
+    Returns: True if inserted successfully
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_VonageID_Insert
+                @name=?,
+                @eight_ID=?,
+                @Edgemd_ID=?,
+                @Modmed_ID=?,
+                @Team_ID=?,
+                @createdBy=?
+        """,
+        vonage_data.name,
+        vonage_data.eight_ID,
+        vonage_data.Edgemd_ID,
+        vonage_data.Modmed_ID,
+        vonage_data.Team_ID,
+        vonage_data.createdBy
+        )
+
+        cursor.commit()
+
+        return cursor.rowcount > 0
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+def db_get_VonageID_data(conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_VonageID_GetAll"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+
+def db_get_all_teams(conn):
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_team_get_all"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+def db_get_team_by_id(team_id: int, conn) -> Optional[dict]:
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("EXEC sp_team_get_by_id @id = ?", (team_id,))
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        columns = [column[0] for column in cursor.description]
+        return dict(zip(columns, row))
+
+    finally:
+        cursor.close()
+
+
+def insert_team(team_data: TeamCreate, conn) -> int:
+    """
+    Execute sp_team_insert stored procedure
+    Returns: True if inserted successfully, False otherwise
+    """
+    cursor = conn.cursor()
+    try:
+        # Just execute the stored procedure - don't expect any return
+        cursor.execute("EXEC sp_team_insert @name = ?", team_data.name)
+        cursor.commit()
+        
+        # Check if any row was affected
+        return cursor.rowcount > 0
+        
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+
+def db_update_team(team_data: TeamUpdate, conn) -> bool:
+    """
+    Execute sp_team_update stored procedure
+    Returns: True if updated, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC sp_team_update  @id = ?, @name = ?",
+            team_data.id, team_data.name
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+def db_delete_team(team_id: int, conn) -> bool:
+    """
+    Delete team by id (you might need to create this SP)
+    Returns: True if deleted, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute("DELETE FROM Team WHERE id = ?", team_id)
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
 
 def get_transaction_data(data, conn):
 

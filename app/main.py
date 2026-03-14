@@ -1,9 +1,9 @@
 from dotenv import load_dotenv
 from typing import List
-from fastapi import FastAPI, Form, UploadFile, File, Depends,APIRouter
+from fastapi import FastAPI, Form, HTTPException, UploadFile, File, Depends,APIRouter
 from app.response import api_response,api_get_response
-from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest
-from .services import  get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest, TeamCreate, TeamUpdate,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest, VonageCreate, VonageUpdate
+from .services import  update_vonage_service,insert_vonage,db_get_VonageID_data, db_update_team,db_delete_team, db_get_all_teams,db_get_team_by_id, get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, insert_team, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from fastapi.middleware.cors import CORSMiddleware
 from .jwt_handler import create_token, require_role
 from fastapi.encoders import jsonable_encoder
@@ -51,6 +51,258 @@ def login(data: dict):
         "access_token": token,
         "role": user["role"]
     }
+
+@app.post(
+    "/vonage-create",
+    tags=["VonageID"]
+)
+async def create_vonage(
+    vonage: VonageCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Create new Vonage ID using sp_VonageID_Insert
+    """
+    try:
+        inserted = insert_vonage(vonage, conn)
+
+        if inserted:
+            return api_get_response(
+                status="success",
+                message="Vonage created successfully",
+                data=[{"name": vonage.name}],
+                total_rows=1,
+                status_code=201
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Failed to create Vonage",
+                data=[],
+                total_rows=0,
+                status_code=500
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@app.post(
+    "/get-vonageid-data",
+    tags=["VonageID"]
+)
+async def get_VonageID_data_api(
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result, total_rows = db_get_VonageID_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="VonageID data fetched successfully",
+        total_rows=total_rows,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.put(
+    "/vonage-update",
+    tags=["VonageID"]
+)
+async def update_vonage(
+    vonage: VonageUpdate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update Vonage ID using sp_VonageID_Update
+    """
+
+    try:
+        updated = update_vonage_service(vonage, conn)
+
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Vonage updated successfully",
+                data=[{"id": vonage.id}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Vonage update failed",
+                data=[],
+                total_rows=0,
+                status_code=400
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.get(
+    "/teams",
+    tags=["Team Management"]
+)
+async def get_all_teams(
+    conn=Depends(get_db),
+    user=Depends(require_role(["Admin", "TeamLeader"]))
+):
+    """
+    Get all teams using sp_team_get_all
+    """
+    try:
+        result, total_rows = db_get_all_teams(conn)
+
+        return api_get_response(
+            status="success",
+            message="Teams fetched successfully",
+            data=result,
+            total_rows=total_rows,
+            status_code=200
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get(
+    "/teams/{team_id}",
+    tags=["Team Management"]
+)
+async def get_team_by_id(
+    team_id: int,
+    conn=Depends(get_db),
+    user=Depends(require_role(["Admin", "TeamLeader"]))
+):
+    """
+    Get team by ID using sp_team_get_by_id
+    """
+    try:
+        result = db_get_team_by_id(team_id, conn)
+
+        if result:
+            return api_get_response(
+                status="success",
+                message="Team fetched successfully",
+                data=[result],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Team not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post(
+    "/teams",
+    tags=["Team Management"]
+)
+async def create_team(
+    team: TeamCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Create new team using sp_team_insert
+    """
+    try:
+        inserted = insert_team(team, conn)
+        
+        if inserted:
+            # Return success without ID since we didn't retrieve it
+            return api_get_response(
+                status="success",
+                message="Team created successfully",
+                data=[{"name": team.name}],  # Return only name, no ID
+                total_rows=1,
+                status_code=201
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Failed to create team",
+                data=[],
+                total_rows=0,
+                status_code=500
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put(
+    "/teams/{team_id}",
+    tags=["Team Management"]
+)
+def update_team(
+    team: TeamUpdate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update team using sp_team_update
+    """
+    try:
+        updated = db_update_team(team, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Team updated successfully",
+                data=[{"id": team.id, "name": team.name}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Team not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete(
+    "/teams/{team_id}",
+    tags=["Team Management"]
+)
+async def delete_team(
+    team_id: int,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Delete team by ID
+    """
+    try:
+        deleted = db_delete_team(team_id, conn)
+        
+        if deleted:
+            return api_get_response(
+                status="success",
+                message="Team deleted successfully",
+                data=[],
+                total_rows=0,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Team not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post(

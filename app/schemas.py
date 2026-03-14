@@ -2,6 +2,43 @@ from typing import Optional,List
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
+class VonageUpdate(BaseModel):
+    id: int
+    name: Optional[str] = None
+    eight_ID: Optional[str] = None
+    Edgemd_ID: Optional[str] = None
+    Modmed_ID: Optional[str] = None
+    Team_ID: Optional[int] = 0
+    updatedBy: Optional[int] = 0
+    IsActive: Optional[int] = 0
+
+class VonageCreate(BaseModel):
+    name: str
+    eight_ID: Optional[str] = None
+    Edgemd_ID: Optional[str] = None
+    Modmed_ID: Optional[str] = None
+    Team_ID: Optional[int] = 0
+    createdBy: Optional[int] = 0
+
+# Team Models
+class TeamBase(BaseModel):
+    name: str
+
+class TeamCreate(TeamBase):
+    pass
+
+class TeamUpdate(TeamBase):
+    id: int
+    name: str
+    
+
+class TeamResponse(TeamBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+
+
 class ReportRequest(BaseModel):
     start_date: date
     end_date: date
