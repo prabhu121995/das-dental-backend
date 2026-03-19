@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI, Form, HTTPException, UploadFile, File, Depends,APIRouter
 from app.response import api_response,api_get_response
-from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest, TeamCreate, TeamUpdate,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest, VonageCreate, VonageUpdate
-from .services import  update_vonage_service,insert_vonage,db_get_VonageID_data, db_update_team,db_delete_team, db_get_all_teams,db_get_team_by_id, get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, insert_team, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest, TeamCreate, TeamUpdate,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest, UpdateUser, UserCreate, VonageCreate, VonageUpdate
+from .services import  db_get_user_data, insert_user, update_user_service, update_vonage_service,insert_vonage,db_get_VonageID_data, db_update_team,db_delete_team, db_get_all_teams,db_get_team_by_id, get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, insert_team, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from fastapi.middleware.cors import CORSMiddleware
 from .jwt_handler import create_token, require_role
 from fastapi.encoders import jsonable_encoder
@@ -51,6 +51,88 @@ def login(data: dict):
         "access_token": token,
         "role": user["role"]
     }
+
+@app.post("/user-create",tags=["user management"]
+)
+async def create_users(
+    userdetails: UserCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Create new user using sp_CreateUser
+    """
+    try:
+        inserted = insert_user(userdetails,user["user_id"], conn)
+
+        if inserted:
+            return api_get_response(
+                status="success",
+                message="User created successfully",
+                data=[{"name": userdetails.username}],
+                total_rows=1,
+                status_code=201
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Failed to create User",
+                data=[],
+                total_rows=0,
+                status_code=500
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/get-user-data",tags=["user management"])
+async def get_user_data_api(
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result, total_rows = db_get_user_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="User data fetched successfully",
+        total_rows=total_rows,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.put("/user-update",tags=["user management"])
+async def update_user(
+    user_data: UpdateUser,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update user information using sp_User_Update
+    """
+
+    try:
+        updated = update_user_service(user_data,user["user_id"], conn)
+
+        if updated:
+            return api_get_response(
+                status="success",
+                message="User updated successfully",
+                data=[{"id": user_data.username}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="user update failed",
+                data=[],
+                total_rows=0,
+                status_code=400
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post(
     "/vonage-create",

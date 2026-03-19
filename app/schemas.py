@@ -2,6 +2,24 @@ from typing import Optional,List
 from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
+
+class UpdateUser(BaseModel):
+    user_id: int
+    username: Optional[str] = None
+    password_hash: Optional[str] = None
+    role_id: Optional[int] = None
+    team_id: Optional[int] = None
+    is_active: Optional[bool] = None
+    agent_name: Optional[str] = None
+
+class UserCreate(BaseModel):
+    username: str
+    password_hash: str
+    role_id: int
+    team_id: int
+    is_active: bool = True
+    agent_name: Optional[str] = None
+
 class VonageUpdate(BaseModel):
     id: int
     name: Optional[str] = None

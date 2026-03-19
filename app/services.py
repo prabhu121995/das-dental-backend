@@ -22,6 +22,107 @@ REPORT_TABLE_MAP = {
     "nextech": ("Nextech", "InputDate")
 }
 
+def update_user_service(user_data,created_by, conn) -> bool:
+    """
+    Execute sp_UpdateUser stored procedure
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_UpdateUser
+                @user_id=?,
+                @username=?,
+                @password_hash=?,
+                @role_id=?,
+                @team_id=?,
+                @is_active=?,
+                @agent_name=?,
+                @created_by=?
+        """,
+            user_data.user_id,
+            user_data.username,
+            user_data.password_hash,
+            user_data.role_id,
+            user_data.team_id,
+            user_data.is_active,
+            user_data.agent_name,
+            created_by
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+def db_get_user_data(conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC sp_GetAllUsers"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+def insert_user(user_details,user_id, conn) -> bool:
+    """
+    Execute sp_CreateUser stored procedure
+    Returns: True if inserted successfully
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_CreateUser
+                @username=?,
+                @password_hash=?,
+                @role_id=?,
+                @team_id=?,
+                @is_active=?,
+                @agent_name=?,
+                @created_by=?
+        """,
+            user_details.username,
+            user_details.password_hash,
+            user_details.role_id,
+            user_details.team_id,
+            user_details.is_active,
+            user_details.agent_name,
+            user_id
+        )
+
+        cursor.commit()
+
+        return cursor.rowcount > 0
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+
 def update_vonage_service(vonage_data, conn) -> bool:
     """
     Execute sp_VonageID_Update stored procedure
