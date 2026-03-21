@@ -1,11 +1,11 @@
 
 pm2 start ecosystem.config.js
 pm2 logs
-
+pm2 list
+pm2 delete rcm-dental-api 
 
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
 
-pm2 delete rcm-dental-api
 
 {
   "username":"admin1",

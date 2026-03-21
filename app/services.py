@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from typing import List, Optional, Tuple, Any
 import json
-from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, ModmedSchema, NextechSchema, TeamCreate, TeamUpdate, TimeOnStatusSchema, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
+from .schemas import AgentSchema, BreakDataSchema, FSSCDataSchema, GroupCreate, GroupUpdate, ModmedSchema, NextechSchema, PracticeCreate, PracticeGroupCreate, PracticeGroupUpdate, PracticeUpdate, TeamCreate, TeamUpdate, TimeOnStatusSchema, UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, transaction_schema,RefusedSchema,UpdateLoginRequest
 
 
 CHUNK_SIZE = 5000
@@ -21,6 +21,272 @@ REPORT_TABLE_MAP = {
     "modmed": ("Modmed", "AppointmentCreatedDate"),
     "nextech": ("Nextech", "InputDate")
 }
+
+def update_nextech_service(nextech_data, conn,updatedBy) -> bool:
+    """
+    Execute sp_Nextech_Update stored procedure
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_Nextech_Update
+                @id=?,
+                @name=?,
+                @Nextech_ID=?,
+                @Team_ID=?,
+                @GroupID=?,
+                @updatedBy=?,
+                @IsActive=?
+        """,
+        nextech_data.id,
+        nextech_data.name,
+        nextech_data.Nextech_ID,
+        nextech_data.Team_ID,
+        nextech_data.GroupID,
+        updatedBy,
+        nextech_data.IsActive
+        )
+
+        conn.commit()
+
+        return True
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+
+def insert_nextech(nextech_data, conn, created_by) -> bool:
+    """
+    Execute sp_Nextech_Insert stored procedure
+    Returns: True if inserted successfully
+    """
+
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            EXEC sp_Nextech_Insert
+                @name=?,
+                @Nextech_ID=?,
+                @Team_ID=?,
+                @GroupID=?,
+                @createdBy=?
+        """,
+        nextech_data.name,
+        nextech_data.Nextech_ID,
+        nextech_data.Team_ID,
+        nextech_data.GroupID,
+        created_by
+        )
+
+        cursor.commit()
+
+        return cursor.rowcount > 0
+
+    except Exception as e:
+        conn.rollback()
+        raise e
+
+    finally:
+        cursor.close()
+
+def db_get_NextTechID_data(conn):
+
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC usp_next_tech_id"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+def db_get_practice_data(conn):
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC usp_get_practice"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+def db_create_practice(practice_data: PracticeCreate, conn) -> bool:
+    """
+    Execute sp_practice_create stored procedure
+    Returns: True if created, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC sp_practice_create @PracticeName = ?,@Practice = ?",
+            practice_data.PracticeName.strip(),practice_data.Practice.strip(),
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+def db_update_practice(practice_data: PracticeUpdate, conn) -> bool:
+    """
+    Execute sp_practice_update stored procedure
+    Returns: True if updated, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC sp_practice_update  @id = ?, @PracticeName = ?, @Practice = ?",
+            practice_data.id, practice_data.PracticeName.strip(), practice_data.Practice.strip()
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+def db_get_group_data(conn) -> Optional[dict]:
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("EXEC usp_get_group")
+        rows = cursor.fetchall()
+
+        if not rows:
+            return None
+
+        columns = [column[0] for column in cursor.description]
+        return [dict(zip(columns, row)) for row in rows]
+
+    finally:
+        cursor.close()
+
+def db_create_group(group_data: GroupCreate, conn) -> bool:
+    """
+    Execute sp_group_create stored procedure
+    Returns: True if created, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC sp_group_create @Groups = ?",
+            group_data.name.strip()
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+def db_update_group(group_data: GroupUpdate, conn) -> bool:
+    """
+    Execute sp_group_update stored procedure
+    Returns: True if updated, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC sp_group_update  @id = ?, @Groups = ?",
+            group_data.id, group_data.name.strip()
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+
+def db_get_practice_group_data(conn):
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "EXEC usp_get_practice_group"
+    )
+
+    # First result set (total rows)
+    total_rows = cursor.fetchone()[0]
+
+    # Move to next result set
+    cursor.nextset()
+
+    columns = [col[0] for col in cursor.description]
+    rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
+
+    cursor.close()
+
+    return rows,total_rows
+
+def db_create_practice_group(practice_data: PracticeGroupCreate, conn, created_by) -> bool:
+    """
+    Execute usp_insert_practice_group stored procedure
+    Returns: True if created, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC usp_insert_practice_group @QueueName = ?,@Practice = ?,@Groups = ?,@createdBy=?",
+            practice_data.QueueName.strip(),practice_data.Practice.strip(),practice_data.Groups.strip(),created_by
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
+
+def db_update_practice_group(practice_data: PracticeGroupUpdate, conn) -> bool:
+    """
+    Execute usp_update_practice_group stored procedure
+    Returns: True if updated, False if not found
+    """
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "EXEC usp_update_practice_group  @IntPracticeID = ?, @QueueName = ?, @Practice = ?, @Groups = ?",
+            practice_data.IntPracticeID, practice_data.QueueName.strip(), practice_data.Practice.strip(), practice_data.Groups.strip()
+        )
+        cursor.commit()
+        return cursor.rowcount > 0
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cursor.close()
 
 def update_user_service(user_data,created_by, conn) -> bool:
     """

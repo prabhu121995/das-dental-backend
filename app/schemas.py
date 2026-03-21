@@ -3,6 +3,46 @@ from pydantic import BaseModel, field_validator
 from datetime import date, datetime, time
 
 
+class NextechCreate(BaseModel):
+    name: str
+    Nextech_ID: Optional[str] = None
+    Team_ID: Optional[int] = 0
+    GroupID: Optional[int] = 0
+
+class NextechUpdate(BaseModel):
+    id: int
+    name: str
+    Nextech_ID: Optional[str] = None
+    Team_ID: Optional[int] = 0
+    GroupID: Optional[int] = 0
+    IsActive: Optional[int] = 0
+
+class PracticeGroupCreate(BaseModel):
+    QueueName: str
+    Practice: str
+    Groups: str
+
+class PracticeGroupUpdate(BaseModel):
+    IntPracticeID: int
+    QueueName: str
+    Practice: str
+    Groups: str
+
+class PracticeCreate(BaseModel):
+    PracticeName: str
+    Practice: str
+
+class PracticeUpdate(BaseModel):
+    id: int
+    PracticeName: str
+    Practice: str
+class GroupUpdate(BaseModel):
+    id: int
+    name: str
+
+class GroupCreate(BaseModel):
+    name: str
+
 class UpdateUser(BaseModel):
     user_id: int
     username: Optional[str] = None

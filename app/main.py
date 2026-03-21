@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 from typing import List
 from fastapi import FastAPI, Form, HTTPException, UploadFile, File, Depends,APIRouter
 from app.response import api_response,api_get_response
-from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, ReportRequest, TeamCreate, TeamUpdate,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest, UpdateUser, UserCreate, VonageCreate, VonageUpdate
-from .services import  db_get_user_data, insert_user, update_user_service, update_vonage_service,insert_vonage,db_get_VonageID_data, db_update_team,db_delete_team, db_get_all_teams,db_get_team_by_id, get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, insert_team, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
+from app.schemas import  AgentLoginResponse, AgentTimeOnStatusResponse, AgentTimeOnStatusResponse, BreakDataResponse, DeleteReportRequest, FSSCResponse, GroupCreate, GroupUpdate, NextechCreate, NextechUpdate, PracticeCreate, PracticeGroupCreate, PracticeGroupUpdate, PracticeGroupUpdate, PracticeUpdate, ReportRequest, TeamCreate, TeamUpdate,  UpdateAgentTimeOnStatusRequest, UpdateBreakDataSchema, UpdateLoginRequest, UpdateUser, UserCreate, VonageCreate, VonageUpdate
+from .services import  db_create_group, db_create_practice, db_create_practice_group, db_get_NextTechID_data, db_get_group_data, db_get_practice_data, db_get_practice_group_data, db_get_user_data, db_update_group, db_update_practice, db_update_practice_group, insert_nextech, insert_user, update_nextech_service, update_user_service, update_vonage_service,insert_vonage,db_get_VonageID_data, db_update_team,db_delete_team, db_get_all_teams,db_get_team_by_id, get_agent_login_by_date, get_break_data_by_date_range, get_fssc_data_by_date_range, get_modmed_data, get_nextech_data, get_refused_data,  get_time_on_status_by_date_range, get_transaction_data, insert_team, process_delete_reports, process_excel_logindata, process_excel_daily_breakdata, process_excel_refused, process_excel_time_on_status, process_excel_transaction_data,process_excel_form_submission_data,process_excel_modmed_data,process_excel_nextch_data, process_update_break_data, process_update_login_data, process_update_time_on_status
 from fastapi.middleware.cors import CORSMiddleware
 from .jwt_handler import create_token, require_role
 from fastapi.encoders import jsonable_encoder
@@ -51,6 +51,325 @@ def login(data: dict):
         "access_token": token,
         "role": user["role"]
     }
+
+@app.post("/nexttechid-create",tags=["NextTechID"])
+async def create_nextechid(
+    nextech: NextechCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Create new NextTech ID using sp_NextTechID_Insert
+    """
+    try:
+        inserted = insert_nextech(nextech, conn,user["user_id"])
+
+        if inserted:
+            return api_get_response(
+                status="success",
+                message="nextech created successfully",
+                data=[{"name": nextech.name}],
+                total_rows=1,
+                status_code=201
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Failed to create NextTech ID",
+                data=[],
+                total_rows=0,
+                status_code=500
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+@app.post(
+    "/nextechid-get",
+    tags=["NextTechID"]
+)
+async def get_NextTechID_data_api(
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin","TeamLeader"]))
+):
+
+    result, total_rows = db_get_NextTechID_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="NextTechID data fetched successfully",
+        total_rows=total_rows,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.put(
+    "/nextechid-update",
+    tags=["NextTechID"]
+)
+async def update_nextechid(
+    nextech: NextechUpdate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update NextTech ID using sp_NextTechID_Update
+    """
+
+    try:
+        updated = update_nextech_service(nextech, conn,user["user_id"])
+
+        if updated:
+            return api_get_response(
+                status="success",
+                message="NextTech ID updated successfully",
+                data=[{"id": nextech.id}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="NextTech ID update failed",
+                data=[],
+                total_rows=0,
+                status_code=400
+            )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/Practice-get",tags=["Practice Management"])
+async def get_practice_data_api(conn = Depends(get_db),user = Depends(require_role(["Admin","TeamLeader"]))):
+
+    result, total_rows = db_get_practice_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="Practice data fetched successfully",
+        total_rows=total_rows,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post("/practice-create",tags=["Practice Management"])
+def create_practice(
+    practice: PracticeCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    create practice group using sp_practice_create
+    """
+    try:
+        updated = db_create_practice(practice, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Practice group created successfully",
+                data=[{"PracticeName": practice.PracticeName,"Practice": practice.Practice}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Practice group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/practice-update",tags=["Practice Management"])
+def update_practice(
+    practice: PracticeUpdate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update practice group using sp_practice_update
+    """
+    try:
+        updated = db_update_practice(practice, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Practice group updated successfully",
+                data=[{"id": practice.id, "name": practice.PracticeName,"Practice": practice.Practice}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Practice group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/group-get",tags=["Group Management"])
+async def get_group_data_api(conn = Depends(get_db),user = Depends(require_role(["Admin","TeamLeader"]))):
+
+    result = db_get_group_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="Group data fetched successfully",
+        total_rows=1,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post("/group-create",tags=["Group Management"])
+def create_group(
+    group: GroupCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    create group using sp_team_update
+    """
+    try:
+        updated = db_create_group(group, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Group create successfully",
+                data=[{"name": group.name}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/group-update",tags=["Group Management"])
+def update_group(
+    group: GroupUpdate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update group using sp_team_update
+    """
+    try:
+        updated = db_update_group(group, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Group updated successfully",
+                data=[{"id": group.id, "name": group.name}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+@app.post("/Practice-get-groups",tags=["Practice Group Management"])
+async def get_practice_groups_data_api(conn = Depends(get_db),user = Depends(require_role(["Admin","TeamLeader"]))):
+
+    result, total_rows = db_get_practice_group_data(conn)
+
+    return api_get_response(
+        status="success",
+        message="Practice data fetched successfully",
+        total_rows=total_rows,
+        data=jsonable_encoder(result),
+        status_code=200
+    )
+
+@app.post("/practice-create-group",tags=["Practice Group Management"])
+def create_practice_group(
+    practice: PracticeGroupCreate,
+    conn = Depends(get_db),
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    create practice group using sp_practice_create
+    """
+    try:
+        updated = db_create_practice_group(practice, conn,user["user_id"])
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Practice group created successfully",
+                data=[{"QueueName": practice.QueueName,"Practice": practice.Practice,"Groups": practice.Groups}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Practice group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/practice-group-update",tags=["Practice Group Management"])
+def update_practice_group_update(
+    practice: PracticeGroupUpdate,
+    conn = Depends(get_db),
+
+    user = Depends(require_role(["Admin"]))
+):
+    """
+    Update practice group using sp_practice_group_update
+    """
+    try:
+        updated = db_update_practice_group(practice, conn)
+        
+        if updated:
+            return api_get_response(
+                status="success",
+                message="Practice group updated successfully",
+                data=[{"QueueName": practice.QueueName, "Practice": practice.Practice,"Groups": practice.Groups}],
+                total_rows=1,
+                status_code=200
+            )
+        else:
+            return api_get_response(
+                status="error",
+                message="Practice group not found",
+                data=[],
+                total_rows=0,
+                status_code=404
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/user-create",tags=["user management"]
 )
@@ -553,7 +872,7 @@ async def get_fssc_data(
         status_code=200
     )
 
-@app.post("/upload-excel-loginData/", tags=["DAS Module"])
+@app.post("/upload-excel-loginData/", tags=["DAS Upload Module"])
 async def upload_login_data(
     file: UploadFile = File(...),
     conn = Depends(get_db),
@@ -601,7 +920,7 @@ async def upload_login_data(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-daily-breakData/", tags=["DAS Module"])
+@app.post("/upload-excel-daily-breakData/", tags=["DAS Upload Module"])
 async def upload_excel_daily_breakdata(
     file: UploadFile = File(...),
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
@@ -647,7 +966,7 @@ async def upload_excel_daily_breakdata(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-timeonstatus/", tags=["DAS Module"])
+@app.post("/upload-excel-timeonstatus/", tags=["DAS Upload Module"])
 async def upload_excel_time_on_status(
     file: UploadFile = File(...),
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
@@ -690,7 +1009,7 @@ async def upload_excel_time_on_status(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-transaction_data/", tags=["DAS Module"])
+@app.post("/upload-excel-transaction_data/", tags=["DAS Upload Module"])
 async def upload_transaction_data(  # Changed endpoint name
     file: UploadFile = File(...),
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
@@ -735,7 +1054,7 @@ async def upload_transaction_data(  # Changed endpoint name
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-form-submissions/", tags=["DAS Module"])
+@app.post("/upload-excel-form-submissions/", tags=["DAS Upload Module"])
 async def upload_form_submission_data(  # Changed endpoint name
     file: UploadFile = File(...),
     shiftdate: date = Form(...),# Need to work single date convert into date range in service layer
@@ -797,7 +1116,7 @@ async def upload_form_submission_data(  # Changed endpoint name
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-modmed/", tags=["DAS Module"])
+@app.post("/upload-excel-modmed/", tags=["DAS Upload Module"])
 async def upload_modmed_data(
     file1: UploadFile = File(...),
     file2: UploadFile = File(...),
@@ -852,7 +1171,7 @@ async def upload_modmed_data(
         if os.path.exists(temp_path2):
             os.remove(temp_path2)
 
-@app.post("/upload-excel-nextech/", tags=["DAS Module"])
+@app.post("/upload-excel-nextech/", tags=["DAS Upload Module"])
 async def upload_nextech_data(
     file: UploadFile = File(...),
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
@@ -896,7 +1215,7 @@ async def upload_nextech_data(
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
-@app.post("/upload-excel-refused/", tags=["DAS Module"])
+@app.post("/upload-excel-refused/", tags=["DAS Upload Module"])
 async def upload_refused_data(
     file: UploadFile = File(...),
     conn = Depends(get_db), user = Depends(require_role(["Admin","TeamLeader"]))
